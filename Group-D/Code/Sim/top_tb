@@ -1,0 +1,131 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: Group D
+// Engineer: Jason Molina
+// 
+// Create Date: 12/05/2023 06:29:56 PM
+// Design Name: Top Testbench
+// Module Name: top_tb
+// Project Name: AES Encryption
+// Target Devices: Nexys A7 100T
+// Tool Versions: 2023.1
+// Description: Testbench for AES encryption top file
+// 
+// Dependencies: top
+// 
+// Revision: 2.0
+// Revision 2.0 - File Created
+// Additional Comments: N/A
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module top_tb(
+    );
+    
+        reg top_clk_tb = 0;
+        
+        reg [127:0] top_key_tb = 128'h000102030405060708090a0b0c0d0e0f;
+        reg [127:0] top_input_tb = 128'h00112233445566778899aabbccddeeff;
+        
+        reg [1:0] top_mode_tb = 2;
+        wire [1:0] top_mode_led_tb;
+        reg top_enable_tb = 0;
+        
+        reg top_display_mode_tb;
+        reg top_autoscroll_tb = 1;
+        reg top_scroll_left_tb = 0;
+        reg top_scroll_right_tb = 0;
+        wire top_ssdd_odp_tb;
+        
+        reg top_clk_gen_rst_tb = 0;
+        
+        wire [7:0] top_dm_an_tb;
+        wire [6:0] top_cc_out_tb;
+        
+        reg top_rst_tb = 0;
+        
+        wire PWM_r_tb;
+        wire PWM_g_tb;
+        wire PWM_b_tb;
+        
+        wire Hsynq_tb;
+        wire Vsynq_tb;
+        wire [3:0] Red_tb;
+        wire [3:0] Green_tb;
+        wire [3:0] Blue_tb;
+        
+        always #10 top_clk_tb = ~top_clk_tb;
+        
+        top_timing CHP(
+            .top_clk(top_clk_tb),
+            .top_key(top_key_tb),
+            .top_input(top_input_tb),
+            
+            .top_mode(top_mode_tb),
+            .top_mode_led(top_mode_led_tb),
+            .top_enable(top_enable_tb),
+            
+            .top_display_mode(top_display_mode_tb),
+            .top_autoscroll(top_autoscroll_tb),
+            .top_scroll_left(top_scroll_left_tb),
+            .top_scroll_right(top_scroll_right_tb),
+            .top_ssdd_odp(top_ssdd_odp_tb),
+            
+            .top_clk_gen_rst(top_clk_gen_rst_tb),
+            
+            .top_dm_an(top_dm_an_tb),
+            .top_cc_out(top_cc_out_tb),
+            
+            .top_rst(top_rst_tb),
+            
+            .PWM_r(PWM_r_tb),
+            .PWM_g(PWM_g_tb),
+            .PWM_b(PWM_b_tb),
+            
+            .Hsynq(Hsynq_tb),
+            .Vsynq(Vsynq_tb),
+            .Red(Red_tb),
+            .Green(Green_tb),
+            .Blue(Blue_tb)
+        );
+        
+    initial
+    begin : CHP_TST
+
+        top_rst_tb = 1;
+        #40
+        top_rst_tb = 0;
+        top_display_mode_tb = 1;
+        top_enable_tb = 1;
+        #40
+        top_enable_tb = 0;
+        top_mode_tb = 0;
+        #20000
+        top_enable_tb = 1;
+        #40
+        top_enable_tb = 0;
+        #20000
+        
+        top_mode_tb = 1;
+        #20000
+        top_enable_tb = 1;
+        #40
+        top_enable_tb = 0;
+        #20000
+        
+        top_autoscroll_tb = 0;
+        top_display_mode_tb = 1;
+        #40
+        top_scroll_right_tb = 1;
+        #40
+        top_scroll_right_tb = 0;
+        top_scroll_left_tb = 1;
+        #40
+        top_scroll_left_tb = 0;
+        #10000
+        
+    $finish;
+    end
+    
+endmodule
