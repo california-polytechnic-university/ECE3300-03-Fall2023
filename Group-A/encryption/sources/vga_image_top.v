@@ -22,13 +22,15 @@
 module vga_image_top (
     input clk,
     input rst,
-    input [6:0] sw,
+    input [8:0] sw,
     output hsync,
     output vsync,
     output [2:0] red,
     output [2:0] green,
     output [2:0] blue,
-    output [2:0] pwmRGB
+    output [2:0] pwmRGB,
+    output [7:0] top_ssd_driver_port_cc,
+    output [7:0] top_ssd_driver_port_an
 );
 
 parameter strip_hpixels = 800;    // Value of pixels in a horizontal line = 800
@@ -47,8 +49,9 @@ wire [9:0] vc_top;
 wire video_on;
 
 wire [23:0] IMG;
-wire [23:0] IMG1, IMG2, decrypted, encrypted;
-wire [17:0] rom_addr4;
+wire [23:0] IMG1, IMG2, IMG3, decrypted, encrypted;
+wire [15:0] rom_addr4;
+wire ssd_clk;
 
 clk_wiz_0 CLK_GEN_PLL (
     .clk_out1(clk25MHz),
@@ -56,6 +59,14 @@ clk_wiz_0 CLK_GEN_PLL (
     .locked(locked_pll),
     .clk_in1(clk)
 );
+
+clk_gen #(.SIZE(32)) clk_gen_top(
+            .fsys(clk),
+            .clk_gen_rst(rst),
+            .clk_gen_speed_control(5'h19),
+            //.clk_gen_out(top_clk),
+            .clk_gen_out_ssd(ssd_clk)
+        );
 
 assign steady_clk25MHz = locked_pll & clk25MHz;
 
@@ -74,21 +85,21 @@ blk_mem_gen_1 bram1 (
   .wea(0),      // input wire [0 : 0] wea
   .addra(rom_addr4),  // input wire [17 : 0] addra
   .dina(24'd0),    // input wire [23 : 0] dina
-  .douta(IMG2)  // output wire [23 : 0] douta
+  .douta(IMG3)  // output wire [23 : 0] douta
 );
 
 encryption encrypt_init(
     .clk(steady_clk25MHz),
     .rst(rst),
-    .sw(sw),
-    .pixel_in(IMG1),
+    .sw(sw[6:0]),
+    .pixel_in(IMG),
     .encrypted_pixel_out(encrypted)
 );
 
 encryption decrypt_init(
     .clk(steady_clk25MHz),
     .rst(rst),
-    .sw(sw),
+    .sw(sw[6:0]),
     .pixel_in(encrypted),
     .encrypted_pixel_out(decrypted)
 );
@@ -103,8 +114,9 @@ vga_640x480 VGA_DRIVER (
     .vidon(video_on)
 );
 
-assign IMG = sw[0] ? IMG1 : encrypted;
-//assign IMG = {IMG1, IMG2};
+assign IMG2 = sw[7] ? decrypted : encrypted;
+assign IMG = sw[8] ? IMG3 : IMG1;
+//assign IMG = {encrypted, IMG1};
 
 vga_image INIT (
     .clk(steady_clk25MHz),
@@ -113,7 +125,8 @@ vga_image INIT (
     .hc(hc_top),
     .vc(vc_top),
     .M(IMG),
-    .SW(sw),
+    .N(IMG2),
+    //.SW(sw),
     .rom_addr4(rom_addr4),
     .red(red),
     .green(green),
@@ -131,6 +144,15 @@ top_pwm #(.SIZE(7)) pwmVGAImageTop(
     .PWM_g(pwmRGB[1]),
     .PWM_b(pwmRGB[2])
 );
+
+wire [31:0]ssd_input = {3'b0, sw[8], 3'b000, sw[7], 17'd0, sw[6:4], sw[3:0]};
+    ssd_driver ssd_driver_top(
+            .ssd_driver_port_inp(ssd_input),
+            .ssd_clk(ssd_clk),
+            .ssd_rst(rst),
+            .ssd_driver_port_cc(top_ssd_driver_port_cc),
+            .ssd_driver_port_an(top_ssd_driver_port_an)
+    );
 
 
 

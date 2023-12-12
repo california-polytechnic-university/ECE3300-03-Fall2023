@@ -26,7 +26,8 @@ module vga_image (
     input [9:0] hc,
     input [9:0] vc,
     input [23:0] M, // [0:153601],  // BRAM with width 24 bits and depth 153602
-    input [6:0] SW,
+    input [23:0] N,
+    //input [6:0] SW,
     output [17:0] rom_addr4,
     output [3:0] red,
     output [3:0] green,
@@ -44,7 +45,7 @@ parameter DISPLAY_HEIGHT = 480;
 parameter IMAGE_WIDTH = 160;
 parameter IMAGE_HEIGHT = 240;
 
-reg [17:0] R1, C1, rom_addr, rom_pix;
+reg [15:0] R1, C1, rom_addr, rom_pix;
 reg spriteon;
 reg [23:0] R, G, B;  // Adjust width for 24 bits
 //// Calculate the centering offsets
@@ -77,28 +78,28 @@ initial begin
 end*/
 
 always @(posedge rst or posedge clk) begin
-    if(SW[0]) begin
-    //    hc_centered <= hc - h_offset;
-    //    vc_centered <= vc - v_offset;
+    //if(SW[0]) begin
+        //hc_centered <= hc - h_offset;
+        //vc_centered <= vc - v_offset;
         hc_adjusted = hc - hbp;
         vc_adjusted = vc - vbp;
     
         if (rst) begin
             spriteon <= 1'b0;
         end else begin
-            spriteon <= ((hc_adjusted <= 2*IMAGE_WIDTH)&&(hc_adjusted > IMAGE_WIDTH) && vc_adjusted <= IMAGE_HEIGHT) ? 1:0;
+            spriteon <= ((hc_adjusted <= IMAGE_WIDTH) && vc_adjusted <= (2*IMAGE_HEIGHT)) ? 1:0;
         end
-    end 
-    else begin
-        hc_adjusted = hc - hbp;
-        vc_adjusted = vc - vbp;
+    //end 
+    //else begin
+//        hc_adjusted = hc - hbp;
+//        vc_adjusted = vc - vbp;
     
-        if (rst) begin
-            spriteon <= 1'b0;
-        end else begin
-            spriteon <= ((hc_adjusted <= IMAGE_WIDTH) && vc_adjusted <= IMAGE_HEIGHT) ? 1:0;
-        end
-    end
+//        if (rst) begin
+//            spriteon <= 1'b0;
+//        end else begin
+//            spriteon <= ((hc_adjusted <= IMAGE_WIDTH) && vc_adjusted <= IMAGE_HEIGHT) ? 1:0;
+//        end
+    //end
 
 end
 
@@ -124,19 +125,36 @@ endfunction*/
 
 always @(posedge rst or posedge clk) begin
     if (rst | (vidon & !spriteon)) begin
-        red_temp_pre <= 4'd0;
-        green_temp_pre <= 4'd0;
-        blue_temp_pre <= 4'd0;
+        //red_temp_pre <= 4'd0;
+        //green_temp_pre <= 4'd0;
+        //blue_temp_pre <= 4'd0;
         red_temp <= 4'd0;
         green_temp <= 4'd0;
         blue_temp <= 4'd0;
         
     end else if (vidon & spriteon) begin
          // Weighted Averaging
-        red_temp <= (M[7:0] + (M[7:0] >> 1)) >> 4;  // Divide red by 2
-        green_temp <= (M[15:8] + (M[15:8] >> 1)) >> 4;  // Divide green by 2
-        blue_temp <= (M[23:16] + (M[23:16] >> 1)) >> 4;  // Divide blue by 2
-        
+         if (hc_adjusted <= IMAGE_WIDTH)
+            begin
+                if(vc_adjusted <= IMAGE_HEIGHT)
+                    begin
+                        red_temp <= (M[7:0] + (M[7:0] >> 1)) >> 4;  // Divide red by 2
+                        green_temp <= (M[15:8] + (M[15:8] >> 1)) >> 4;  // Divide green by 2
+                        blue_temp <= (M[23:16] + (M[23:16] >> 1)) >> 4;  // Divide blue by 2
+                    end
+                else if (vc_adjusted > IMAGE_HEIGHT && vc_adjusted <= (2*IMAGE_HEIGHT))
+                    begin
+                        red_temp <= (N[7:0] + (N[7:0] >> 1)) >> 4;  // Divide red by 2
+                        green_temp <= (N[15:8] + (N[15:8] >> 1)) >> 4;  // Divide green by 2
+                        blue_temp <= (N[23:16] + (N[23:16] >> 1)) >> 4;  // Divide blue by 2
+                    end
+            end
+//        else if (hc_adjusted <= (IMAGE_WIDTH) && hc_adjusted > IMAGE_WIDTH_1)
+//            begin
+//                red_temp <= (N[7:0] + (N[7:0] >> 1)) >> 4;  // Divide red by 2
+//                green_temp <= (N[15:8] + (N[15:8] >> 1)) >> 4;  // Divide green by 2
+//                blue_temp <= (N[23:16] + (N[23:16] >> 1)) >> 4;  // Divide blue by 2
+//            end
         //red_temp <= red_temp_pre;
         //green_temp <= green_temp_pre;
         //blue_temp <= blue_temp_pre;
@@ -169,8 +187,7 @@ always @(posedge rst or posedge clk) begin
 end
 
 always @(posedge rst or posedge clk) begin
-
-    if(rst | (vc_adjusted >= IMAGE_HEIGHT && hc_adjusted >= IMAGE_WIDTH) )
+    if(rst | (vc_adjusted <= (2*IMAGE_HEIGHT) && vc_adjusted == IMAGE_HEIGHT && hc_adjusted >= IMAGE_WIDTH) | (vc_adjusted >= (2*IMAGE_HEIGHT) && hc_adjusted >= IMAGE_WIDTH))
         rom_addr = 0;
     else if(vidon & spriteon)
         rom_addr = rom_addr + 1; 
